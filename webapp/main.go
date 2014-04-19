@@ -1,11 +1,16 @@
 package main
 
 import (
+	"runtime"
 	"fmt"
 	"log"
 	"net/http"
 	_ "github.com/hogedigo/shizgo/webapp/handler"
 )
+
+func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+}
 
 func helloWorld(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "Hello world!")

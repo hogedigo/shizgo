@@ -3,26 +3,31 @@ package handler
 import (
 	"encoding/json"
 	"log"
-	"time"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
+	"time"
 
 	"code.google.com/p/go.net/html"
 )
 
-type Tree struct {
-	Url      string `json:",omitempty"`
-	Error    string `json:",omitempty"`
-	Children []*Tree
-	Tat      int64 `json:",omitempty`
-}
-
 func init() {
-	http.HandleFunc("/crawl", handleCrawl)
+	http.HandleFunc("/pcrawl", handlePcrawl)
 }
 
-func handleCrawl(w http.ResponseWriter, r *http.Request) {
+type syncUrlset struct {
+	set map[string]bool
+	sync.Mutex
+}
+
+func newSyncUrlset() *syncUrlset {
+	var urlset syncUrlset
+	urlset.set = make(map[string]bool)
+	return &urlset
+}
+
+func handlePcrawl(w http.ResponseWriter, r *http.Request) {
 
 	u := r.FormValue("url")
 	if u == "" {
@@ -42,10 +47,10 @@ func handleCrawl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urlset := make(map[string]bool)
-	root := crawl(u, depth-1, mxpp, urlset)
+	urlset := newSyncUrlset()
+	ch := pcrawl(u, depth-1, mxpp, urlset)
 
-	b, err := json.Marshal(root)
+	b, err := json.Marshal(<-ch)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -55,14 +60,23 @@ func handleCrawl(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-func crawl(aUrl string, depth int, mxpp int, urlset map[string]bool) *Tree {
+func pcrawl(aUrl string, depth int, mxpp int, urlset *syncUrlset) <-chan *Tree {
+
+	ch := make(chan *Tree)
+	go func() {
+		ch<-_pcrawl(aUrl, depth, mxpp, urlset)
+	}()
+	return ch
+}
+
+func _pcrawl(aUrl string, depth int, mxpp int, urlset *syncUrlset) *Tree  {
 
 	tree := Tree{Url: aUrl}
 
 	start := time.Now().UnixNano()
 	defer func(tree *Tree) {
 		tree.Tat = time.Now().UnixNano() - start
-	}(&tree);
+	}(&tree)
 
 	resp, err := http.Get(tree.Url)
 	if err != nil {
@@ -73,12 +87,17 @@ func crawl(aUrl string, depth int, mxpp int, urlset map[string]bool) *Tree {
 
 	parsedUrl, _ := url.Parse(tree.Url)
 
+	futureChildren := make([]<-chan *Tree, 0, mxpp)
+
 	childNum := 0
 	z := html.NewTokenizer(resp.Body)
 	for {
 		tokenType := z.Next()
 		switch tokenType {
 		case html.ErrorToken:
+			for _, ch := range futureChildren {
+				tree.Children = append(tree.Children, <-ch)
+			}
 			return &tree
 		case html.StartTagToken:
 			tagname, _ := z.TagName()
@@ -96,23 +115,37 @@ func crawl(aUrl string, depth int, mxpp int, urlset map[string]bool) *Tree {
 						} else {
 							childUrl = parsedUrl.Scheme + "://" + parsedUrl.Host + string(val)
 						}
+						log.Printf("childUrl: %s", childUrl)
 
-						if urlset[childUrl] {
+						if firstHit := func() bool {
+							urlset.Lock()
+							defer urlset.Unlock()
+							if urlset.set[childUrl] {
+								return false
+							} else {
+								urlset.set[childUrl] = true
+								return true
+							}
+						}(); !firstHit {
 							continue
-						} else {
-							urlset[childUrl] = true
 						}
 
-						var child *Tree
 						if depth > 0 {
-							child = crawl(childUrl, depth-1, mxpp, urlset)
+							childCh := pcrawl(childUrl, depth-1, mxpp, urlset)
+							futureChildren = append(futureChildren, childCh)
 						} else {
-							child = &Tree{Url: childUrl}
+							childCh := make(chan *Tree)
+							go func() {
+								childCh<-&Tree{Url: childUrl}
+							}()
+							futureChildren = append(futureChildren, childCh)
 						}
-						tree.Children = append(tree.Children, child)
 
 						childNum++
 						if childNum >= mxpp {
+							for _, ch := range futureChildren {
+								tree.Children = append(tree.Children, <-ch)
+							}
 							return &tree
 						}
 						break

@@ -3,7 +3,7 @@ package todo
 import (
 	"appengine"
 	"appengine/user"
-	"fmt"
+	"html/template"
 	"net/http"
 )
 
@@ -12,7 +12,6 @@ func init() {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-type", "text/html; charset=utf-8")
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	if u == nil {
@@ -20,14 +19,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, loginUrl, http.StatusFound)
 		return
 	}
+
 	logoutUrl, _ := user.LogoutURL(c, "/")
 
-	html := `
-<html><body>
-Hello, %s ! - <a href="%s">sign out</a><br>
-<hr>
-This is TODO page under constuction!
-</body></html>
-`
-	fmt.Fprintf(w, html, u.Email, logoutUrl)
+	t, err := template.ParseFiles("todo/todo.tmpl")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-type", "text/html; charset=utf-8")
+
+	params := struct {
+		LogoutUrl string
+		User      *user.User
+	}{
+		logoutUrl,
+		u,
+	}
+
+	err = t.Execute(w, params)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

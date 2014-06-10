@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html><body>
+Hello, {{.User.Email}} ! - <a href="{{.LogoutUrl}}">sign out</a><br>
+<hr>
+<form action="/todo/register" method="POST">
+todo:<input name="Todo" type="text"></input><br>
+note:<textarea name="Notes" type="text"></textarea><br>
+dueDate:<input name="DueDate" type="date"></input><br>
+<input type="submit"></input>
+</form>
+</body></html>

@@ -12,9 +12,11 @@ func init() {
 }
 
 type Todo struct {
+	UserKey string
 	Todo    string
 	Notes   string
 	DueDate string
+	Done    bool
 }
 
 func register(w http.ResponseWriter, r *http.Request) {
@@ -31,15 +33,17 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	todo := Todo{
+		u.ID,
 		r.FormValue("Todo"),
 		r.FormValue("Notes"),
 		r.FormValue("DueDate"),
+		false,
 	}
 
 	key := datastore.NewIncompleteKey(c, "Todo", nil)
 	key, err := datastore.Put(c, key, &todo)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

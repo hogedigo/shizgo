@@ -2,6 +2,7 @@ package todo
 
 import (
 	"appengine"
+	"appengine/datastore"
 	"appengine/user"
 	"html/template"
 	"net/http"
@@ -28,14 +29,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	q := datastore.NewQuery("Todo").Filter("UserId =", u.ID).Filter("Done =", false).Order("-DueDate")
+
+	var todos []Todo
+	_, err = q.GetAll(c, &todos)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-type", "text/html; charset=utf-8")
 
 	params := struct {
 		LogoutUrl string
 		User      *user.User
+		Todos     []Todo
 	}{
 		logoutUrl,
 		u,
+		todos,
 	}
 
 	err = t.Execute(w, params)

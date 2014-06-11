@@ -8,4 +8,24 @@ note:<textarea name="Notes" type="text"></textarea><br>
 dueDate:<input name="DueDate" type="date"></input><br>
 <input type="submit"></input>
 </form>
+<hr>
+<table border="1">
+<thead>
+	<tr>
+		<th>Todo</th>
+		<th>Notes</th>
+		<th>DueDate</th>
+	</tr>
+</thead>
+<tbody>
+{{range .Todos}}
+	<tr>
+		<td>{{.Todo}}</td>
+		<td style="white-space: pre;">{{.Notes}}</td>
+		<td>{{.DueDate}}</td>
+	</tr>
+{{end}}
+</tbody>
+</table><br>
+<a href="/todo">refresh</a>
 </body></html>

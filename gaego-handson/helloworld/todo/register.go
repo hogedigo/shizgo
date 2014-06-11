@@ -12,7 +12,7 @@ func init() {
 }
 
 type Todo struct {
-	UserKey string
+	UserId  string
 	Todo    string
 	Notes   string
 	DueDate string
@@ -47,5 +47,5 @@ func register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler(w, r)
+	http.Redirect(w, r, "/todo", http.StatusFound)
 }

@@ -15,14 +15,17 @@ dueDate:<input name="DueDate" type="date"></input><br>
 		<th>Todo</th>
 		<th>Notes</th>
 		<th>DueDate</th>
+		<th></th>
 	</tr>
 </thead>
 <tbody>
-{{range .Todos}}
+{{$keys := .Keys}}
+{{range $index, $element := .Todos}}
 	<tr>
 		<td>{{.Todo}}</td>
 		<td style="white-space: pre;">{{.Notes}}</td>
 		<td>{{.DueDate}}</td>
+		<td><a href="/todo/done?key={{(index $keys $index).Encode}}">done</a></td>
 	</tr>
 {{end}}
 </tbody>

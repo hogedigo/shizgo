@@ -32,7 +32,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	q := datastore.NewQuery("Todo").Filter("UserId =", u.ID).Filter("Done =", false).Order("-DueDate")
 
 	var todos []Todo
-	_, err = q.GetAll(c, &todos)
+	keys, err := q.GetAll(c, &todos)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -44,10 +44,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		LogoutUrl string
 		User      *user.User
 		Todos     []Todo
+		Keys      []*datastore.Key
 	}{
 		logoutUrl,
 		u,
 		todos,
+		keys,
 	}
 
 	err = t.Execute(w, params)

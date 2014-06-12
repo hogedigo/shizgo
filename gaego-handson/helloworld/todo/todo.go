@@ -4,6 +4,7 @@ import (
 	"appengine"
 	"appengine/datastore"
 	"appengine/user"
+	"encoding/json"
 	"html/template"
 	"net/http"
 )
@@ -38,8 +39,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-type", "text/html; charset=utf-8")
-
 	params := struct {
 		LogoutUrl string
 		User      *user.User
@@ -51,6 +50,26 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		todos,
 		keys,
 	}
+
+	accept := r.Header.Get("Accept")
+	c.Infof("accept: %T:%v", accept, accept)
+
+	if accept == "application/json" {
+		w.Header().Set("Content-type", "application/json; charset=utf-8")
+		b, err := json.MarshalIndent(todos, "", "\t")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, err = w.Write(b)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	w.Header().Set("Content-type", "text/html; charset=utf-8")
 
 	err = t.Execute(w, params)
 	if err != nil {

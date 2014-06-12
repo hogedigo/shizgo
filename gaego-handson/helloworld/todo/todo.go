@@ -51,10 +51,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		keys,
 	}
 
-	accept := r.Header.Get("Accept")
-	c.Infof("accept: %T:%v", accept, accept)
-
-	if accept == "application/json" {
+	if r.Header.Get("Accept") == "application/json" {
 		w.Header().Set("Content-type", "application/json; charset=utf-8")
 		b, err := json.MarshalIndent(todos, "", "\t")
 		if err != nil {
